@@ -32,8 +32,6 @@ public class ClientHandler implements Runnable {
         } finally {
             // Xử lý khi client ngắt kết nối
             server.removeClient(this);
-            // Nếu đang trong trận, xử thua (chưa viết cái này)
-            // server.handlePlayerDisconnect(this);
             try {
                 clientSocket.close();
             } catch (IOException e) {
