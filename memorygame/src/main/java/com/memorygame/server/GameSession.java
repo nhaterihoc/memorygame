@@ -125,18 +125,18 @@ public class GameSession implements Runnable {
     private void endGame() {
         if (gameEnded) return;
         gameEnded = true;
-        
+
         if (roundTimer != null) {
             roundTimer.cancel();
         }
         
         String p1Result, p2Result;
         if (p1Score > p2Score) {
-            p1Result = "WIN"; p2Result = "LOSE";
+            p1Result = MessageProtocol.WIN; p2Result = MessageProtocol.LOSE;
         } else if (p2Score > p1Score) {
-            p1Result = "LOSE"; p2Result = "WIN";
+            p1Result = MessageProtocol.LOSE; p2Result = MessageProtocol.WIN;
         } else {
-            p1Result = "DRAW"; p2Result = "DRAW";
+            p1Result = MessageProtocol.DRAW; p2Result = MessageProtocol.DRAW;
         }
 
         player1.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p1Result);
@@ -161,7 +161,7 @@ public class GameSession implements Runnable {
         System.out.println("Player " + disconnectedPlayer.getUsername() + " disconnected. " + winner.getUsername() + " wins by forfeit.");
 
         // Gửi tin nhắn chiến thắng (do bỏ cuộc) cho người chơi còn lại
-        winner.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + "WIN_FORFEIT");
+        winner.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + MessageProtocol.WIN_FORFEIT);
 
         server.endGameSession(this, player1, player2);
     }

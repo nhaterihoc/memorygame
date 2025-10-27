@@ -9,7 +9,6 @@ public class MessageProtocol {
     public static final String CHALLENGE_RESPONSE = "CHALLENGE_RESPONSE";
     public static final String SUBMIT_ANSWER = "SUBMIT_ANSWER";
     public static final String LOGOUT = "LOGOUT";
-    public static final String OUT_GAME = "OUT_GAME";
 
     // Server to Client
     public static final String LOGIN_SUCCESS = "LOGIN_SUCCESS";
@@ -21,4 +20,9 @@ public class MessageProtocol {
     public static final String HIDE_PHRASE = "HIDE_PHRASE"; // Yêu cầu ẩn từ
     public static final String UPDATE_SCORE = "UPDATE_SCORE";
     public static final String GAME_RESULT = "GAME_RESULT"; // WIN, LOSE, DRAW
+
+    public static final String WIN = "WIN";
+    public static final String LOSE = "LOSE";
+    public static final String DRAW = "DRAW";
+    public static final String WIN_FORFEIT = "WIN_FORFEIT";
 }
