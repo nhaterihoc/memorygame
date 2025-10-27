@@ -35,8 +35,20 @@ public class Server {
     // Xử lý khi client ngắt kết nối
     public synchronized void removeClient(ClientHandler client) {
         if (client.getUsername() != null) {
-            onlineClients.remove(client.getUsername());
-            System.out.println("Client " + client.getUsername() + " has disconnected. Total: " + onlineClients.size());
+            String username = client.getUsername();
+            
+            // 1. Kiểm tra xem người chơi này có trong một trận đấu không
+            GameSession session = playerToSessionMap.get(username);
+            
+            if (session != null) {
+                // 2. Nếu có, báo cho GameSession biết để xử lý việc bỏ cuộc
+                System.out.println("Player " + username + " was in a game. Handling disconnect...");
+                session.handleDisconnect(client); 
+            }
+
+            // Xóa người chơi khỏi danh sách online
+            onlineClients.remove(username);
+            System.out.println("Client " + username + " has disconnected. Total: " + onlineClients.size());
         }
     }
 

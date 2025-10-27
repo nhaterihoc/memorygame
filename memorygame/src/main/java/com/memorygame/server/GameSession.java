@@ -22,6 +22,7 @@ public class GameSession implements Runnable {
     
     private Timer roundTimer;
     private boolean roundProcessed = false;
+    private boolean gameEnded = false;
 
     public GameSession(ClientHandler player1, ClientHandler player2, int rounds, int displayTime, int waitTime, Server server) {
         this.player1 = player1;
@@ -38,6 +39,7 @@ public class GameSession implements Runnable {
     }
 
     private void startNewRound() {
+        if (gameEnded) return;
         if (currentRound >= totalRounds) {
             endGame();
             return;
@@ -75,7 +77,7 @@ public class GameSession implements Runnable {
     }
 
     public synchronized void setPlayerAnswer(ClientHandler player, String answer) {
-        if (roundProcessed) return;
+        if (roundProcessed || gameEnded) return;
 
         if (player.getUsername().equals(player1.getUsername())) {
             p1Answer = answer;
@@ -89,7 +91,7 @@ public class GameSession implements Runnable {
     }
 
     private synchronized void processRoundResults() {
-        if (roundProcessed) return;
+        if (roundProcessed || gameEnded) return;
         roundProcessed = true;
         roundTimer.cancel();
 
@@ -121,6 +123,9 @@ public class GameSession implements Runnable {
     }
 
     private void endGame() {
+        if (gameEnded) return;
+        gameEnded = true;
+        
         if (roundTimer != null) {
             roundTimer.cancel();
         }
@@ -136,6 +141,28 @@ public class GameSession implements Runnable {
 
         player1.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p1Result);
         player2.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p2Result);
+        server.endGameSession(this, player1, player2);
+    }
+
+    public synchronized void handleDisconnect(ClientHandler disconnectedPlayer) {
+        if (gameEnded) return;
+
+        // Đánh dấu game kết thúc và dừng mọi timer
+        gameEnded = true;
+        if (roundTimer != null) {
+            roundTimer.cancel();
+        }
+
+        // Xác định người thắng cuộc
+        ClientHandler winner = (disconnectedPlayer.getUsername().equals(player1.getUsername())) 
+                                ? player2 
+                                : player1;
+        
+        System.out.println("Player " + disconnectedPlayer.getUsername() + " disconnected. " + winner.getUsername() + " wins by forfeit.");
+
+        // Gửi tin nhắn chiến thắng (do bỏ cuộc) cho người chơi còn lại
+        winner.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + "WIN_FORFEIT");
+
         server.endGameSession(this, player1, player2);
     }
 }
