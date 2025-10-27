@@ -6,7 +6,7 @@ import java.util.Scanner;
 
 /**Client để Test */
 public class Client {
-    private static final String SERVER_ADDRESS = "127.0.0.1"; // localhost
+    private static final String SERVER_ADDRESS = "127.0.0.1";
     private static final int SERVER_PORT = 12345;
 
     public static void main(String[] args) {
@@ -17,7 +17,6 @@ public class Client {
 
             System.out.println("Connected to the server.");
 
-            // Tạo một luồng riêng chỉ để lắng nghe tin nhắn từ server
             Thread serverListener = new Thread(() -> {
                 try {
                     String serverMessage;

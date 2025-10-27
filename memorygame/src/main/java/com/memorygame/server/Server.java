@@ -10,6 +10,21 @@ public class Server {
     private static final int PORT = 12345;
     private Map<String, ClientHandler> onlineClients = new ConcurrentHashMap<>();
     private Map<String, GameSession> playerToSessionMap = new ConcurrentHashMap<>();
+    private Map<String, PendingChallenge> pendingChallenges = new ConcurrentHashMap<>();
+
+    private static class PendingChallenge {
+        String challenger;
+        int rounds;
+        int displayTime;
+        int waitTime;
+
+        public PendingChallenge(String challenger, int rounds, int displayTime, int waitTime) {
+            this.challenger = challenger;
+            this.rounds = rounds;
+            this.displayTime = displayTime;
+            this.waitTime = waitTime;
+        }
+    }
 
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
@@ -53,13 +68,28 @@ public class Server {
     }
 
     // Xử lý yêu cầu thách đấu
-    public void handleChallengeRequest(String challenger, String opponent, String rounds, String displayTime, String waitTime) {
+    public void handleChallengeRequest(String challenger, String opponent, String roundsStr, String displayTimeStr, String waitTimeStr) {
         ClientHandler opponentHandler = onlineClients.get(opponent);
         if (opponentHandler != null) {
-            // Gửi lời mời đến đối thủ
-            String invitation = MessageProtocol.INVITATION + MessageProtocol.SEPARATOR + challenger;
-            opponentHandler.sendMessage(invitation);
-            System.out.println("Sent invitation from " + challenger + " to " + opponent);
+            
+            try {
+                int rounds = Integer.parseInt(roundsStr);
+                int displayTime = Integer.parseInt(displayTimeStr);
+                int waitTime = Integer.parseInt(waitTimeStr);
+
+                // Tạo và lưu lời mời đang chờ
+                PendingChallenge challenge = new PendingChallenge(challenger, rounds, displayTime, waitTime);
+                pendingChallenges.put(opponent, challenge);
+
+                // Gửi lời mời đến đối thủ
+                String invitation = MessageProtocol.INVITATION + MessageProtocol.SEPARATOR + challenger;
+                opponentHandler.sendMessage(invitation);
+                System.out.println("Sent invitation from " + challenger + " to " + opponent);
+
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid challenge parameters received: " + e.getMessage());
+            }
+
         } else {
             System.out.println("Challenge failed: Opponent " + opponent + " not found or not online.");
         }
@@ -67,16 +97,30 @@ public class Server {
     
     // Xử lý phản hồi thách đấu
     public void handleChallengeResponse(String responder, String response, String challenger) {
+        // Lấy và xóa lời mời đang chờ khỏi map
+        PendingChallenge challenge = pendingChallenges.remove(responder);
+
+        // Kiểm tra xem có lời mời hợp lệ không
+        if (challenge == null || !challenge.challenger.equals(challenger)) {
+            System.out.println("Invalid or expired challenge response from " + responder);
+            return;
+        }
+
         ClientHandler challengerHandler = onlineClients.get(challenger);
         ClientHandler responderHandler = onlineClients.get(responder);
 
         if ("ACCEPT".equals(response) && challengerHandler != null && responderHandler != null) {
             System.out.println(responder + " accepted challenge from " + challenger + ". Starting game...");
             
-            // Thời gian hiển thị từ đang để là 3 giây, thời gian chờ đáp án đang để là 30 giây
-            GameSession session = new GameSession(challengerHandler, responderHandler, 5, 3000, 30000, this);
+            GameSession session = new GameSession(
+                challengerHandler, 
+                responderHandler, 
+                challenge.rounds, 
+                challenge.displayTime, 
+                challenge.waitTime, 
+                this
+            );
             
-            // LƯU LẠI AI ĐANG Ở TRẬN NÀO
             playerToSessionMap.put(challenger, session);
             playerToSessionMap.put(responder, session);
             
