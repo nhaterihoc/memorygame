@@ -58,7 +58,7 @@ public class ClientHandler implements Runnable {
                 break;
 
             case MessageProtocol.CHALLENGE_REQUEST:
-                // parts[1]: đối thủ, parts[2]: số round
+                // parts[1]: đối thủ, parts[2]: số round, parts[3]: thời gian hiển thị từ, parts[4]: thời gian chờ
                 server.handleChallengeRequest(this.username, parts[1], parts[2], parts[3], parts[4]);
                 break;
 
@@ -72,7 +72,17 @@ public class ClientHandler implements Runnable {
                 server.handlePlayerAnswer(this, parts[1]);
                 break;
 
-            // Thêm các case khác...
+            case MessageProtocol.PRACTICE_REQUEST:
+                // parts[1]: số round, parts[2]: thời gian hiển thị từ, parts[3]: thời gian chờ
+                try {
+                    int rounds = Integer.parseInt(parts[1]);
+                    int displayTime = Integer.parseInt(parts[2]);
+                    int waitTime = Integer.parseInt(parts[3]);
+                    server.handlePracticeRequest(this, rounds, displayTime, waitTime);
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid practice parameters: " + message);
+                }
+                break;
         }
     }
 

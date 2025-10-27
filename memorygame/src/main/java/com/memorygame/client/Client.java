@@ -35,6 +35,7 @@ public class Client {
             System.out.println("CHALLENGE_RESPONSE|ACCEPT|hung"); // gửi từ client tuan
             System.out.println("SUBMIT_ANSWER|test"); // câu trả lời đúng
             System.out.println("SUBMIT_ANSWER|fsfdsfdsfsd"); // câu trả lời sai
+            System.out.println("PRACTICE_REQUEST|5|3000|10000"); // chế độ luyện tập
             System.out.println("------------------------------------");
 
             while (true) {

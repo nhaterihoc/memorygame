@@ -19,6 +19,9 @@ public class GameSession implements Runnable {
     private long roundStartTime;
 
     private Server server;
+
+    private long p1AnswerTime = -1;
+    private long p2AnswerTime = -1;
     
     private Timer roundTimer;
     private boolean roundProcessed = false;
@@ -47,12 +50,16 @@ public class GameSession implements Runnable {
         currentRound++;
         p1Answer = null;
         p2Answer = null;
+        p1AnswerTime = -1;
+        p2AnswerTime = -1;
         roundProcessed = false;
 
         currentPhrase = server.getRandomPhrase();
         String newRoundMessage = MessageProtocol.NEW_ROUND + MessageProtocol.SEPARATOR + currentRound + MessageProtocol.SEPARATOR + currentPhrase;
         player1.sendMessage(newRoundMessage);
-        player2.sendMessage(newRoundMessage);
+        if (player2 != null) {
+            player2.sendMessage(newRoundMessage);
+        }
 
         if (roundTimer != null) {
             roundTimer.cancel();
@@ -63,7 +70,9 @@ public class GameSession implements Runnable {
             @Override
             public void run() {
                 player1.sendMessage(MessageProtocol.HIDE_PHRASE);
-                player2.sendMessage(MessageProtocol.HIDE_PHRASE);
+                if (player2 != null) {
+                    player2.sendMessage(MessageProtocol.HIDE_PHRASE);
+                }
                 roundStartTime = System.currentTimeMillis();
 
                 roundTimer.schedule(new TimerTask() {
@@ -76,16 +85,30 @@ public class GameSession implements Runnable {
         }, displayTime);
     }
 
+    private boolean allPlayersAnswered() {
+        if (player2 == null) {
+            // Chế độ luyện tập: chỉ cần p1 trả lời
+            return p1Answer != null;
+        } else {
+            // Chế độ thách đấu: cần cả 2
+            return p1Answer != null && p2Answer != null;
+        }
+    }
+
     public synchronized void setPlayerAnswer(ClientHandler player, String answer) {
         if (roundProcessed || gameEnded) return;
 
-        if (player.getUsername().equals(player1.getUsername())) {
+        long submissionTime = System.currentTimeMillis();
+
+        if (player.getUsername().equals(player1.getUsername()) && p1Answer == null) {
             p1Answer = answer;
-        } else if (player.getUsername().equals(player2.getUsername())) {
+            p1AnswerTime = submissionTime;
+        } else if (player2 != null && player.getUsername().equals(player2.getUsername()) && p2Answer == null) {
             p2Answer = answer;
+            p2AnswerTime = submissionTime;
         }
 
-        if (p1Answer != null && p2Answer != null) {
+        if (allPlayersAnswered()) {
             processRoundResults();
         }
     }
@@ -95,19 +118,30 @@ public class GameSession implements Runnable {
         roundProcessed = true;
         roundTimer.cancel();
 
-        long timeElapsed = System.currentTimeMillis() - roundStartTime;
-        long timeLeft = (waitTime - timeElapsed) / 1000;
-
         if (p1Answer != null && p1Answer.equals(currentPhrase)) {
-            p1Score += calculatePoints(currentPhrase, timeLeft);
+            if (player2 == null) { // Chế độ luyện tập
+                p1Score += currentPhrase.length(); 
+            } else { // Chế độ thách đấu
+                long timeElapsed = p1AnswerTime - roundStartTime;
+                long timeLeft = (waitTime - timeElapsed) / 1000;
+                p1Score += calculatePoints(currentPhrase, timeLeft);
+            }
         }
-        if (p2Answer != null && p2Answer.equals(currentPhrase)) {
+
+        if (player2 != null && p2Answer != null && p2Answer.equals(currentPhrase)) {
+            long timeElapsed = p2AnswerTime - roundStartTime;
+            long timeLeft = (waitTime - timeElapsed) / 1000;
             p2Score += calculatePoints(currentPhrase, timeLeft);
         }
 
-        String scoreUpdate = MessageProtocol.UPDATE_SCORE + MessageProtocol.SEPARATOR + p1Score + MessageProtocol.SEPARATOR + p2Score;
-        player1.sendMessage(scoreUpdate);
-        player2.sendMessage(scoreUpdate);
+        if (player2 != null) {
+            String scoreUpdate = MessageProtocol.UPDATE_SCORE + MessageProtocol.SEPARATOR + p1Score + MessageProtocol.SEPARATOR + p2Score;
+            player1.sendMessage(scoreUpdate);
+            player2.sendMessage(scoreUpdate);
+        } else {
+            String scoreUpdate = MessageProtocol.UPDATE_SCORE + MessageProtocol.SEPARATOR + p1Score;
+            player1.sendMessage(scoreUpdate);
+        }
 
         new Timer().schedule(new TimerTask() {
             @Override
@@ -130,38 +164,45 @@ public class GameSession implements Runnable {
             roundTimer.cancel();
         }
         
-        String p1Result, p2Result;
-        if (p1Score > p2Score) {
-            p1Result = MessageProtocol.WIN; p2Result = MessageProtocol.LOSE;
-        } else if (p2Score > p1Score) {
-            p1Result = MessageProtocol.LOSE; p2Result = MessageProtocol.WIN;
+        if (player2 != null) {
+            // Chế độ thách đấu: So sánh điểm và gửi kết quả
+            String p1Result, p2Result;
+            if (p1Score > p2Score) {
+                p1Result = MessageProtocol.WIN; p2Result = MessageProtocol.LOSE;
+            } else if (p1Score < p2Score) {
+                p1Result = MessageProtocol.LOSE; p2Result = MessageProtocol.WIN;
+            } else {
+                p1Result = MessageProtocol.DRAW; p2Result = MessageProtocol.DRAW;
+            }
+            player1.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p1Result);
+            player2.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p2Result);
         } else {
-            p1Result = MessageProtocol.DRAW; p2Result = MessageProtocol.DRAW;
+            // Chế độ luyện tập: Chỉ gửi thông báo hoàn thành, không lưu kết quả
+            player1.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + MessageProtocol.PRACTICE_COMPLETE);
         }
 
-        player1.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p1Result);
-        player2.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + p2Result);
         server.endGameSession(this, player1, player2);
     }
 
     public synchronized void handleDisconnect(ClientHandler disconnectedPlayer) {
         if (gameEnded) return;
 
-        // Đánh dấu game kết thúc và dừng mọi timer
         gameEnded = true;
         if (roundTimer != null) {
             roundTimer.cancel();
         }
 
-        // Xác định người thắng cuộc
-        ClientHandler winner = (disconnectedPlayer.getUsername().equals(player1.getUsername())) 
-                                ? player2 
-                                : player1;
-        
-        System.out.println("Player " + disconnectedPlayer.getUsername() + " disconnected. " + winner.getUsername() + " wins by forfeit.");
-
-        // Gửi tin nhắn chiến thắng (do bỏ cuộc) cho người chơi còn lại
-        winner.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + MessageProtocol.WIN_FORFEIT);
+        if (player2 != null) {
+            // Chế độ thách đấu
+            ClientHandler winner = (disconnectedPlayer.getUsername().equals(player1.getUsername())) 
+                                    ? player2 
+                                    : player1;
+            System.out.println("Player " + disconnectedPlayer.getUsername() + " disconnected. " + winner.getUsername() + " wins by forfeit.");
+            winner.sendMessage(MessageProtocol.GAME_RESULT + MessageProtocol.SEPARATOR + MessageProtocol.WIN_FORFEIT);
+        } else {
+            // Chế độ luyện tập
+            System.out.println("Player " + disconnectedPlayer.getUsername() + " disconnected from practice mode.");
+        }
 
         server.endGameSession(this, player1, player2);
     }

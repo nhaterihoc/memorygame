@@ -52,11 +52,11 @@ public class Server {
         if (client.getUsername() != null) {
             String username = client.getUsername();
             
-            // 1. Kiểm tra xem người chơi này có trong một trận đấu không
+            // Kiểm tra xem người chơi này có trong một trận đấu không
             GameSession session = playerToSessionMap.get(username);
             
             if (session != null) {
-                // 2. Nếu có, báo cho GameSession biết để xử lý việc bỏ cuộc
+                // Nếu có, báo cho GameSession biết để xử lý việc bỏ cuộc
                 System.out.println("Player " + username + " was in a game. Handling disconnect...");
                 session.handleDisconnect(client); 
             }
@@ -65,6 +65,18 @@ public class Server {
             onlineClients.remove(username);
             System.out.println("Client " + username + " has disconnected. Total: " + onlineClients.size());
         }
+    }
+
+    // Chế độ luyện tập
+    public void handlePracticeRequest(ClientHandler player, int rounds, int displayTime, int waitTime) {
+        System.out.println("Player " + player.getUsername() + " started a practice game.");
+        
+        // Tạo một GameSession mới với player2 là null
+        GameSession session = new GameSession(player, null, rounds, displayTime, waitTime, this);
+        
+        playerToSessionMap.put(player.getUsername(), session);
+        
+        new Thread(session).start();
     }
 
     // Xử lý yêu cầu thách đấu
@@ -109,7 +121,7 @@ public class Server {
         ClientHandler challengerHandler = onlineClients.get(challenger);
         ClientHandler responderHandler = onlineClients.get(responder);
 
-        if ("ACCEPT".equals(response) && challengerHandler != null && responderHandler != null) {
+        if (MessageProtocol.ACCEPT.equals(response) && challengerHandler != null && responderHandler != null) {
             System.out.println(responder + " accepted challenge from " + challenger + ". Starting game...");
             
             GameSession session = new GameSession(
@@ -126,7 +138,9 @@ public class Server {
             
             new Thread(session).start();
         } else if (challengerHandler != null) {
-            challengerHandler.sendMessage("Challenge rejected by " + responder);
+            String rejectMessage = MessageProtocol.CHALLENGE_REJECTED + MessageProtocol.SEPARATOR + responder;
+            challengerHandler.sendMessage(rejectMessage);
+            System.out.println(responder + " rejected challenge from " + challenger);
         }
     }
 
@@ -140,15 +154,17 @@ public class Server {
     }
 
     public void endGameSession(GameSession session, ClientHandler player1, ClientHandler player2) {
-        // Dọn dẹp map sau khi game kết thúc
-        playerToSessionMap.remove(player1.getUsername());
-        playerToSessionMap.remove(player2.getUsername());
-        System.out.println("Game session ended for " + player1.getUsername() + " and " + player2.getUsername());
+        if (player1 != null) {
+            playerToSessionMap.remove(player1.getUsername());
+        }
+        if (player2 != null) {
+            playerToSessionMap.remove(player2.getUsername());
+        }
+        System.out.println("Game session ended.");
     }
     
-    // Các phương thức dùng để Test
     public String getRandomPhrase() { return "test"; } // chưa có database
-    public boolean authenticateUser(String user, String pass) { return true; } // Luôn cho login thành công để test
+    public boolean authenticateUser(String user, String pass) { return true; }
 
     public static void main(String[] args) {
         Server server = new Server();

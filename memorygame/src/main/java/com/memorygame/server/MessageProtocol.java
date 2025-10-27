@@ -5,8 +5,10 @@ public class MessageProtocol {
     // Client to Server
     public static final String LOGIN = "LOGIN";
     public static final String PRACTICE_REQUEST = "PRACTICE_REQUEST";
+    public static final String PRACTICE_COMPLETE = "PRACTICE_COMPLETE";
     public static final String CHALLENGE_REQUEST = "CHALLENGE_REQUEST";
     public static final String CHALLENGE_RESPONSE = "CHALLENGE_RESPONSE";
+    public static final String CHALLENGE_REJECTED = "CHALLENGE_REJECTED";
     public static final String SUBMIT_ANSWER = "SUBMIT_ANSWER";
     public static final String LOGOUT = "LOGOUT";
 
@@ -25,4 +27,7 @@ public class MessageProtocol {
     public static final String LOSE = "LOSE";
     public static final String DRAW = "DRAW";
     public static final String WIN_FORFEIT = "WIN_FORFEIT";
+
+    public static final String ACCEPT = "ACCEPT";
+    public static final String REJECT = "REJECT";
 }
